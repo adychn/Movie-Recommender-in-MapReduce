@@ -1,4 +1,4 @@
-Java source files are located in src/main/java/. 
+MapReduce source files are located in src/main/java/. 
 
 You can host the compiled Java files in a Hadoop installed environment, and set up the HDFS master-slave topology to test out MapReduce. 
 
