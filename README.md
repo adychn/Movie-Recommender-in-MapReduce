@@ -1,43 +1,57 @@
-Read user, movie, rating input text files use MapReduce, built a HDFS master and slave environment through a Docker image.
+## Movie Recommender in MapReduce
+• Recommended movies to users based on user rating history with item collaborative filtering.
 
-The whole process was connected by five MapReduce jobs with I/O files stored in HDFS.
+• Built a co-occurrence matrix and a user rating matrix from raw data, combined matrices using MapReduce.
 
-Input: userX, movieY, ratingZ
+• Used Docker containers to emulate a Hadoop master and slaves environment.
 
-1st MR: 
-Read text files line by line. 
-Output each user as a key with movies rated by the user.
-
-1st MR: user1 /t movie1:3.5, movie2:4.8, movie3:5.5 ......
+• The whole process was connected by five MapReduce jobs with I/O files stored in HDFS.
 
 
-2nd MR: 
-Read in 1st MR, built co-occurrence matrix (or as math calls it “incident matrix”) by putting each pair of movie with count 1.
-Add up pairs of movies with total counts.
+## Process
+Input format: 1,10001,5.0 (userX, movieY, ratingZ)
 
-2nd map: movie1:rating, movie2:rating ......
+### 1st MR
+Divide input data by user id.
 
-2nd reduce: movie1:movie2 value = iterable<1, 1, 1>
-
-3rd MR:
-Read in 2nd MR, since it is a symmetry matrix, you can normalized according to the first or second movie. So I use first movieA as key, the value as movieB:count (reading each row of the matrix).
-Sum up all the total counts from one row (key), and divide each movie count with the total count. Make movie_col as a key, preparing for matrix multiplication in map reduce, because in MR you need to do col multiplication. Think of doing a row x a col kind of matrix multiplication, you get a mini matrix.
-
-3rd map: 
-input: movie_row:movie_col \t count
-outputKey = movie_row
-outputValue = movie_col=count
-
-3rd reduce:
-input: key = movie_row, value = <movie_col1:count, movie_col2:count...>
-output: key = movie_col, value = movie_row=count
+Reducer output: userX    movieY:ratingZ, movie2:4.8, movie3:5.5...
 
 
-4th MR: (matrix multiplication)
-Read in 3rd MR, make movie_col as a key, movie=probability as value.
-Read in original text file, make movie as a key, user:rating as value.
-What we want to do in the reducer here is to multiply every user rating with every movie probability, and we write out user:movie probability*rating.
+### 2nd MR
+Generate co-occurrence matrix from movies. Add up pairs of movies with total counts.
+
+Reducer output: movieA:movieB    count
 
 
-5th MR:
-Gather all user:movie, and sum up all probability*rating for that user with that movie.
+### 3rd MR
+Normalize the co-occurence matrix. Read in previous output. Since it is a symmetry matrix, you can normalized according to the first or second movie. Choose to  normalized on row by making movie_col as a key, for later easier time to do matrix column multiplication. By reading a row of matrix at a time, you can sum up the row to get a row sum, and then nomalize each column value with respect to the row sum.
+
+Mapper input:   movie_row:movie_col    count
+
+Mapper output:  movie_row    movie_col:count
+
+Reducer output: movie_col    movie_row=probability
+
+
+### 4th MR
+Do matrix multiply, rating matrix x normalized co-occurence matrix. Rating matrix is generated from the original input file. What we want to do in the reducer here is to multiply every user rating with every movie probability, and we write out user:movie probability*rating.
+
+Rating mapper input: original raw file. user, movie, rating.
+
+Rating mapper output: movie_col    user:rating
+
+Normalized co-occurence mapper input:  movie_col    movie_row=probability
+
+Normalized co-occurence mapper output: movie_col    movie_row=probability
+
+Reducer output: user:movie_row    proba * rating
+
+
+### 5th MR
+Gather all userX:movieY, and sum up all probability*rating for that user with that movie.
+
+Mapper input: user:movie_row    proba * rating...
+
+Reducer output: user:movie_row    rating
+
+
