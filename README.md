@@ -14,7 +14,7 @@ userX, movieY, ratingZ
 ```
 
 ### 1st MR
-Divide input data by user id.
+Group movies and its ratings by user ID.
 ```
 Mapper:
 key = userID
@@ -29,16 +29,16 @@ value = movieY:ratingZ, movie2:4.8, movie3:5.5...
 Generate co-occurrence matrix from movies. Add up pairs of movies with total counts.
 ```
 Mapper:
-key = movieA:movieB
+key = movie_row:movie_col
 value = 1
 
 Reducer: 
-key = movieA:movieB
+key = movie_row:movie_col
 value = count
 ```
 
 ### 3rd MR
-Normalize the co-occurence matrix. Read in previous output. Since it is a symmetry matrix, you can normalized according to the first or second movie. Choose to  normalized on row by making movie_col as a key, for later easier time to do matrix column multiplication. By reading a row of matrix at a time, you can sum up the row to get a row sum, and then nomalize each column value with respect to the row sum.
+Normalize the co-occurence matrix. Read in previous output. Since it is a symmetry matrix, you can normalized according to the first or second movie. Choose to  normalized on row by making movie_col as a key, for later easier time to do matrix column multiplication. By reading a row of matrix at a time, you can sum up the row to get a row sum, and then nomalize each column value with respect to the row sum. How much weight does movie_row has for movie_col.
 ```
 Mapper:
 key = movie_row
@@ -53,7 +53,7 @@ value = movie_row=probability
 Do matrix multiply, rating matrix x normalized co-occurence matrix. Rating matrix is generated from the original input file. What we want to do in the reducer here is to multiply every user rating with every movie probability, and we write out user:movie probability*rating.
 ```
 Rating mapper (input is from the original raw file): 
-key = movie_col    
+key = movie
 value = user:rating
 
 Normalized co-occurence mapper:
@@ -62,7 +62,7 @@ value = movie_row=proba
 
 Reducer: 
 key = user:movie_row    
-value = [(proba1 * rating1), (proba2 * rating2)...]
+value = proba * rating
 ```
 
 ### 5th MR
@@ -73,7 +73,7 @@ key = user:movie_row
 value = [value1, value2, value3...]
 
 Reducer: 
-key = user:movie_row    
+key = user:movie    
 value = rating
 ```
 
